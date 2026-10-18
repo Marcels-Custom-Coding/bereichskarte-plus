@@ -24,7 +24,7 @@ const PATH_DOWN = "M11,4H13V16L18.5,10.5L19.92,11.92L12,19.84L4.08,11.92L5.5,10.
 const PATH_DELETE = "M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z";
 const PATH_PLUS = "M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z";
 
-const OWN_KEYS = ["sensors", "show_icons", "shutter_view", "climate_view", "view_timeout"];
+const OWN_KEYS = ["sensors", "show_icons", "shutter_view", "climate_view", "view_timeout", "default_view"];
 
 function dropField(schema, name) {
   return schema
@@ -598,13 +598,27 @@ class BereichskartePlusEditor extends LitElement {
   }
 
   _renderGeneral() {
-    return this._selector(
+    return html`${this._selector(
+      {
+        select: {
+          mode: "dropdown",
+          options: [
+            { value: "home", label: "Bild (Foto, Kamera oder Symbol)" },
+            { value: "climate", label: "Klima-Ansicht" },
+          ],
+        },
+      },
+      this._config.default_view || "home",
+      "Startansicht",
+      "Was die Karte normalerweise zeigt. Rollladen- und andere Ansichten kehren nach der eingestellten Zeit hierher zurück. Mit dem × kommst du jederzeit zum Bild.",
+      (value) => this._fire({ ...this._config, default_view: value === "home" ? undefined : value })
+    )}${this._selector(
       this._num(5, 120, 5, "s"),
       this._config.view_timeout ?? 20,
       "Zurück zum Bild nach",
-      "So lange bleibt die Rollladen- oder Klima-Ansicht ohne Berührung offen.",
+      "So lange bleibt eine andere Ansicht ohne Berührung offen, dann kommt wieder die Startansicht.",
       (value) => this._fire({ ...this._config, view_timeout: value })
-    );
+    )}`;
   }
 
   render() {

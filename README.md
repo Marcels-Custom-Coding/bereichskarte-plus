@@ -21,7 +21,7 @@ Alles im grafischen Editor, Abschnitt **Werte in der Infozeile**:
 
 **Klima:** Oben rechts im Bild steht ein kleines Klima-Feld. Ein Tipp öffnet die Bedienung mit an und aus, Betriebsart, Zieltemperatur und Leistung, auf Wunsch mit Leistungsverlauf an der Seite.
 
-Nach 20 Sekunden ohne Berührung geht die Karte zurück zum Bild (einstellbar).
+**Startansicht:** Bild oder gleich die Klima-Ansicht (`default_view: climate`). Andere Ansichten kehren nach 20 Sekunden ohne Berührung dorthin zurück (einstellbar), mit dem × kommst du jederzeit zum Bild.
 
 ## Installation
 
@@ -61,6 +61,7 @@ climate_view:
   show_history: true
   history_hours: 6
 view_timeout: 20
+default_view: climate
 features:
   - type: area-controls
 ```

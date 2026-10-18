@@ -15,7 +15,7 @@ import { livePosition, travelTimes } from "./travel.js";
 import { overlayCss, renderOverlay } from "./views.js";
 import "./editor.js";
 
-const VERSION = "0.3.0";
+const VERSION = "0.3.1";
 const CARD = "bereichskarte-plus";
 const EDITOR = `${CARD}-editor`;
 const POWER_TO_WATT = { mW: 0.001, W: 1, kW: 1000, MW: 1e6 };
@@ -396,7 +396,15 @@ function defineCard(Base) {
       return this._config?.view_timeout ?? 20;
     }
 
+    // Was die Karte normalerweise zeigt: Bild oder gleich die Klima-Ansicht.
+    _defaultView() {
+      return this._config?.default_view === "climate" && this._climate()
+        ? "climate"
+        : "home";
+    }
+
     _sticky() {
+      if (this._view === this._defaultView()) return true;
       if (this._view !== "climate") return false;
       const cl = this._climate();
       return Boolean(cl?.cfg.stay_while_on && cl.st.state !== "off");
@@ -429,10 +437,10 @@ function defineCard(Base) {
         void bar.offsetWidth;
         bar.style.animation = "";
       }
-      if (this._view === "home") return;
+      if (this._view === this._defaultView()) return;
       this._viewTimer = setTimeout(() => {
         if (this._sticky()) this._bump();
-        else this._setView("home");
+        else this._setView(this._defaultView());
       }, this._timeout() * 1000);
     }
 
@@ -473,7 +481,7 @@ function defineCard(Base) {
         state !== this._lastCoverState &&
         sh.moving &&
         armed &&
-        this._view === "home"
+        this._view !== "shutter"
       ) {
         this._setView("shutter");
       }
@@ -495,6 +503,13 @@ function defineCard(Base) {
         );
       }
       if (!this.hass || !this._config) return;
+      // Startansicht beim ersten Mal und wenn sie im Editor geändert wird.
+      const start = this._defaultView();
+      if (start !== this._lastDefault) {
+        this._lastDefault = start;
+        this._setView(start);
+        return;
+      }
       this._renderIcons();
       this._watchCover();
       this._renderOverlay();

@@ -218,7 +218,11 @@ export function renderOverlay(c) {
     ${view !== "home"
       ? html`<div class="bkp-layer" @pointerdown=${() => c._bump()}>
           ${view === "shutter" ? renderShutterView(c) : renderClimateView(c)}
-          <button class="bkp-close" title="Zurück zum Bild" @click=${() => c._setView("home")}>
+          <button
+            class="bkp-close"
+            title=${view === c._defaultView() ? "Bild zeigen" : "Zurück"}
+            @click=${() => c._setView(view === c._defaultView() ? "home" : c._defaultView())}
+          >
             <ha-icon icon="mdi:close"></ha-icon>
           </button>
           ${c._sticky() ? nothing : html`<div class="bkp-timer" style="--bkp-t:${c._timeout()}s"></div>`}

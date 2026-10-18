@@ -142,8 +142,9 @@ export function powerSum(hass, ids) {
   return count ? sum : undefined;
 }
 
+// Ganze Watt reichen; Nachkommastellen kosten in der Infozeile nur Platz.
 export function formatWatt(hass, watt) {
-  return withUnit(formatNumber(hass, watt), "W");
+  return withUnit(formatNumber(hass, watt, Math.abs(watt) >= 10 ? 0 : 1), "W");
 }
 
 // Ein Wert der Infozeile: Text plus Symbol.

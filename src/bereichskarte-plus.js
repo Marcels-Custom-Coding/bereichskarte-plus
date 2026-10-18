@@ -1,4 +1,4 @@
-import { html, nothing, render } from "lit";
+import { html, render } from "lit";
 import {
   DEFAULT_SENSORS,
   areaDomainIds,
@@ -15,33 +15,30 @@ import { livePosition, travelTimes } from "./travel.js";
 import { overlayCss, renderOverlay } from "./views.js";
 import "./editor.js";
 
-const VERSION = "0.3.4";
+const VERSION = "0.3.5";
 const CARD = "bereichskarte-plus";
 const EDITOR = `${CARD}-editor`;
 const POWER_TO_WATT = { mW: 0.001, W: 1, kW: 1000, MW: 1e6 };
 
 const cardStyles = new CSSStyleSheet();
 cardStyles.replaceSync(`
+  /* Passt nicht alles in eine Zeile, rutscht der Rest in die nächste,
+     statt mit „…“ abgeschnitten zu werden. */
   .bkp-values {
-    display: block;
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 7px;
     width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
   .bkp-value {
     display: inline-flex;
     align-items: center;
-    gap: 2px;
-    vertical-align: middle;
+    gap: 1px;
+    white-space: nowrap;
   }
   .bkp-value ha-icon {
-    --mdc-icon-size: 15px;
+    --mdc-icon-size: 14px;
     color: var(--secondary-text-color);
-  }
-  .bkp-sep {
-    margin: 0 5px;
-    vertical-align: middle;
   }
   ${overlayCss}
 `);
@@ -56,6 +53,30 @@ async function loadAreaCard() {
 }
 
 let editorPreload;
+
+// Die eingebaute Tastenleiste „Bereichssteuerung“ baut ohne eigene
+// „controls“-Liste bei jedem Zustandswechsel eine neue Standardliste und
+// durchsucht deshalb jedes Mal alle Entitäten neu. Bei tausenden Entitäten und
+// einem Dutzend Karten steht die Seite dann still. Eine feste Liste reicht,
+// damit der eingebaute Zwischenspeicher greift. Hilft jeder Bereichskarte auf
+// der Seite, nicht nur dieser.
+function patchAreaControls() {
+  customElements.whenDefined("hui-area-controls-card-feature").then((cls) => {
+    const proto = cls.prototype;
+    const desc = Object.getOwnPropertyDescriptor(proto, "_controls");
+    if (!desc?.get || desc.set || proto._bkpPatched) return;
+    let defaults;
+    Object.defineProperty(proto, "_controls", {
+      configurable: true,
+      get() {
+        if (this._config?.controls) return this._config.controls;
+        if (!defaults) defaults = desc.get.call(this);
+        return defaults;
+      },
+    });
+    proto._bkpPatched = true;
+  });
+}
 
 function defineCard(Base) {
   class BereichskartePlus extends Base {
@@ -125,13 +146,14 @@ function defineCard(Base) {
         slot.className = "bkp-values";
         info.appendChild(slot);
       }
+      // Die Symbole trennen die Werte schon, Punkte dazwischen wären
+      // verschenkter Platz.
       render(
         html`${this._items().map(
-          (part, i) =>
-            html`${i ? html`<span class="bkp-sep">·</span>` : nothing}<span
-                class="bkp-value"
-                ><ha-icon .icon=${part.icon}></ha-icon>${part.text}</span
-              >`
+          (part) =>
+            html`<span class="bkp-value"
+              ><ha-icon .icon=${part.icon}></ha-icon>${part.text}</span
+            >`
         )}`,
         slot
       );
@@ -538,6 +560,7 @@ window.customCards.push({
   preview: true,
 });
 
+patchAreaControls();
 loadAreaCard().then(defineCard);
 
 console.info(

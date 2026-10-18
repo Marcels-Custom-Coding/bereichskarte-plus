@@ -84,8 +84,45 @@ class BereichskartePlusEditor extends LitElement {
     this._native = native;
   }
 
+  // Zustände ändern sich mehrmals pro Sekunde; der Editor muss nicht jedes
+  // Mal alle Auswahlfelder neu aufbauen. Neue Entitäten, Bereiche oder
+  // Sprache kommen sofort durch, reine Messwerte höchstens alle 1,5 s.
+  shouldUpdate(changed) {
+    if (this.hasUpdated && changed.size === 1 && changed.has("hass")) {
+      const prev = changed.get("hass");
+      const cur = this.hass;
+      const structural =
+        !prev ||
+        !cur ||
+        prev.entities !== cur.entities ||
+        prev.devices !== cur.devices ||
+        prev.areas !== cur.areas ||
+        prev.localize !== cur.localize ||
+        prev.themes !== cur.themes ||
+        prev.config !== cur.config;
+      const since = Date.now() - (this._hassRendered || 0);
+      if (!structural && since < 1500) {
+        if (!this._hassTimer) {
+          this._hassTimer = setTimeout(() => {
+            this._hassTimer = undefined;
+            this.requestUpdate("hass", prev);
+          }, 1500 - since);
+        }
+        return false;
+      }
+    }
+    if (changed.has("hass")) this._hassRendered = Date.now();
+    return true;
+  }
+
   updated(changed) {
     if (changed.has("hass") && this._native) this._native.hass = this.hass;
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    clearTimeout(this._hassTimer);
+    this._hassTimer = undefined;
   }
 
   _fire(config) {
@@ -506,9 +543,9 @@ class BereichskartePlusEditor extends LitElement {
     const sv = this._config.shutter_view || {};
     const auto = areaDomainIds(this.hass, area?.area_id, "cover")[0];
     const on = sv.enabled !== false;
-    return html`<details class="section" ?open=${this._openShutter} @toggle=${(ev) => (this._openShutter = ev.target.open)}>
+    return html`<details class="section" ?open=${this._openShutter} @toggle=${(ev) => this._toggleSection("_openShutter", ev)}>
       <summary><ha-icon icon="mdi:window-shutter"></ha-icon>Rollladen-Ansicht</summary>
-      <div class="body">
+      ${!this._openShutter ? nothing : html`<div class="body">
         ${this._selector(
           { boolean: {} },
           on,
@@ -538,8 +575,15 @@ class BereichskartePlusEditor extends LitElement {
               ${this._renderSunTip(sv)}
             `
           : nothing}
-      </div>
+      </div>`}
     </details>`;
+  }
+
+  // Zugeklappte Abschnitte werden gar nicht erst aufgebaut; das spart beim
+  // Öffnen des Editors ein Dutzend Auswahlfelder.
+  _toggleSection(key, ev) {
+    this[key] = ev.target.open;
+    this.requestUpdate();
   }
 
   _renderClimateSection(area) {
@@ -548,9 +592,9 @@ class BereichskartePlusEditor extends LitElement {
     const climate = cv.entity || auto;
     const autoPower = climate ? pickPower(this.hass, climate) : undefined;
     const on = cv.enabled !== false;
-    return html`<details class="section" ?open=${this._openClimate} @toggle=${(ev) => (this._openClimate = ev.target.open)}>
+    return html`<details class="section" ?open=${this._openClimate} @toggle=${(ev) => this._toggleSection("_openClimate", ev)}>
       <summary><ha-icon icon="mdi:air-conditioner"></ha-icon>Klima-Ansicht</summary>
-      <div class="body">
+      ${!this._openClimate ? nothing : html`<div class="body">
         ${this._selector(
           { boolean: {} },
           on,
@@ -603,7 +647,7 @@ class BereichskartePlusEditor extends LitElement {
               )}
             `
           : nothing}
-      </div>
+      </div>`}
     </details>`;
   }
 

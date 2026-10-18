@@ -1,6 +1,6 @@
 {
   "name": "bereichskarte-plus",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Bereichskarte für Home Assistant mit frei wählbaren Werten",
   "private": true,
   "type": "module",

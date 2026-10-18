@@ -187,12 +187,14 @@ var te=Object.defineProperty;var ee=(o,t,i)=>t in o?te(o,t,{enumerable:!0,config
     .bkp-target .unit { display: none; }
     .bkp-chip { left: 6px; top: 6px; padding: 4px 8px; font-size: 11px; max-width: calc(100% - 50px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; }
     .bkp-stage { bottom: 46px; }
-    .bkp-unit { top: 32%; width: 66%; height: 22%; }
+    .bkp-unit { top: 38%; width: 66%; height: 22%; }
     .bkp-air { top: 56%; height: 40%; }
     .bkp-shutterview { gap: 5%; padding: 0 5%; }
-    .bkp-win { height: 66%; border-width: 4px; }
-    .bkp-side { gap: 4px; }
-    .bkp-num { font-size: 28px; }
+    .bkp-win { height: 60%; border-width: 4px; }
+    .bkp-side { gap: 4px; position: static; }
+    .bkp-shutterview .bkp-row { position: absolute; right: 6px; bottom: 6px; flex-direction: column; gap: 4px; }
+    .bkp-shutterview .bkp-rb { width: 28px; height: 28px; }
+    .bkp-num { font-size: 24px; }
     .bkp-num span { font-size: 14px; }
     .bkp-side small { font-size: 11px; }
     .bkp-side b { font-size: 14px; }
@@ -562,7 +564,7 @@ var te=Object.defineProperty;var ee=(o,t,i)=>t in o?te(o,t,{enumerable:!0,config
     .add:active {
       transform: scale(0.97);
     }
-  `);customElements.define(Te,K);var Pe="0.2.1",st="bereichskarte-plus",Oe=`${st}-editor`,He={mW:.001,W:1,kW:1e3,MW:1e6},Qt=new CSSStyleSheet;Qt.replaceSync(`
+  `);customElements.define(Te,K);var Pe="0.2.2",st="bereichskarte-plus",Oe=`${st}-editor`,He={mW:.001,W:1,kW:1e3,MW:1e6},Qt=new CSSStyleSheet;Qt.replaceSync(`
   .bkp-values {
     display: block;
     width: 100%;

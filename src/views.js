@@ -195,7 +195,7 @@ export function renderClimateView(c) {
       <button class="bkp-rb flat" title="Kälter" ?disabled=${typeof target !== "number"} @click=${() => c._climateStep(-1)}>
         <ha-icon icon="mdi:minus"></ha-icon>
       </button>
-      <span class="bkp-target">${typeof target === "number" ? `${fmtTemp(target)} °C` : "–"}</span>
+      <span class="bkp-target">${typeof target === "number" ? html`${fmtTemp(target)}<span class="unit"> °C</span>` : "–"}</span>
       <button class="bkp-rb flat" title="Wärmer" ?disabled=${typeof target !== "number"} @click=${() => c._climateStep(1)}>
         <ha-icon icon="mdi:plus"></ha-icon>
       </button>
@@ -243,7 +243,7 @@ export const overlayCss = `
 
   .bkp-layer { position: absolute; inset: 0; pointer-events: auto; animation: bkp-in 0.25s ease-out; }
   @keyframes bkp-in { from { opacity: 0; } to { opacity: 1; } }
-  .bkp-view { position: absolute; inset: 0; overflow: hidden; }
+  .bkp-view { position: absolute; inset: 0; overflow: hidden; container-type: inline-size; }
   .bkp-close { position: absolute; top: 8px; right: 8px; z-index: 3; width: 28px; height: 28px; border-radius: 50%; border: 0; display: grid; place-items: center; background: rgb(0 0 0 / 0.3); color: #fff; }
   .bkp-close ha-icon { --mdc-icon-size: 16px; }
   .bkp-timer { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--primary-color); z-index: 3; animation: bkp-count var(--bkp-t, 20s) linear forwards; }
@@ -298,7 +298,33 @@ export const overlayCss = `
   .bkp-bar { position: absolute; left: 10px; right: 10px; bottom: 10px; height: 46px; border-radius: 16px; background: rgb(255 255 255 / 0.78); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: space-between; padding: 0 5px; box-sizing: border-box; }
   .bkp-bar .bkp-rb.flat { background: transparent; box-shadow: none; }
   .bkp-bar .bkp-rb.power-on { background: var(--mc); color: #fff; }
-  .bkp-target { font-size: 20px; font-variant-numeric: tabular-nums; }
+  .bkp-target { font-size: 20px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* schmale Karten */
+  @container (max-width: 300px) {
+    .bkp-hist { display: none; }
+    .with-hist .bkp-stage { right: 0; }
+  }
+  @container (max-width: 260px) {
+    .bkp-rb { width: 30px; height: 30px; }
+    .bkp-overlay ha-icon, .bkp-rb ha-icon { --mdc-icon-size: 16px; }
+    .bkp-bar { left: 6px; right: 6px; bottom: 6px; height: 40px; padding: 0 3px; border-radius: 14px; }
+    .bkp-target { font-size: 16px; }
+    .bkp-target .unit { display: none; }
+    .bkp-chip { left: 6px; top: 6px; padding: 4px 8px; font-size: 11px; max-width: calc(100% - 50px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; }
+    .bkp-stage { bottom: 46px; }
+    .bkp-unit { top: 32%; width: 66%; height: 22%; }
+    .bkp-air { top: 56%; height: 40%; }
+    .bkp-shutterview { gap: 5%; padding: 0 5%; }
+    .bkp-win { height: 66%; border-width: 4px; }
+    .bkp-side { gap: 4px; }
+    .bkp-num { font-size: 28px; }
+    .bkp-num span { font-size: 14px; }
+    .bkp-side small { font-size: 11px; }
+    .bkp-side b { font-size: 14px; }
+    .bkp-row { gap: 4px; }
+    .bkp-cta { padding: 5px 10px; font-size: 11.5px; }
+  }
 
   /* dunkles Design */
   .bkp-overlay.dark .bkp-shutterview { background: #2b2723; color: #ece4d8; }

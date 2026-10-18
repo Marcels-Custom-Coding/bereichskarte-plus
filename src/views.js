@@ -65,7 +65,7 @@ function renderWindow(c, sh) {
   const shown = c._shownPos(sh);
   const closed = 100 - shown;
   return html`<div
-    class="bkp-win ${sh.canSet ? "drag" : ""}"
+    class="bkp-win ${sh.canSet ? "drag" : ""} ${sh.moving || c._dragPos != null ? "moving" : ""}"
     @pointerdown=${(ev) => c._windowDown(ev)}
     title=${sh.canSet ? "Ziehen, um die Höhe einzustellen" : ""}
   >
@@ -81,7 +81,7 @@ export function renderShutterView(c) {
   const sh = c._cover();
   if (!sh) return nothing;
   const tip = c._sunTip();
-  const shown = c._shownPos(sh);
+  const shown = Math.round(c._shownPos(sh));
   const label =
     shown === 0 ? "geschlossen" : shown === 100 ? "ganz offen" : "offen";
   let side;
@@ -100,7 +100,7 @@ export function renderShutterView(c) {
         Auf ${tip.target} %
       </button>`;
   } else {
-    side = html`<div class="bkp-num">${shown}<span>%</span></div>
+    side = html`<div class="bkp-num"><span class="bkp-numv">${shown}</span><span>%</span></div>
       <small>${sh.moving
         ? sh.st.state === "opening"
           ? "fährt hoch …"
@@ -262,13 +262,16 @@ export const overlayCss = `
   .bkp-win.drag { cursor: ns-resize; }
   .bkp-outside { position: absolute; inset: 0; background: radial-gradient(ellipse 80% 38% at 25% 104%, #77a95f 60%, transparent 61%), radial-gradient(ellipse 70% 32% at 88% 104%, #5d9450 60%, transparent 61%), linear-gradient(#8ec5f2, #dcefff); }
   .bkp-win::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 4px; margin-left: -2px; background: #fff; z-index: 1; }
-  .bkp-shutter { position: absolute; left: 0; right: 0; top: 0; z-index: 2; background: repeating-linear-gradient(#d6cfc3 0 9px, #bcb4a6 9px 11px); box-shadow: 0 2px 4px rgb(0 0 0 / 0.25); transition: height 0.2s; }
+  /* Lamellen hängen an der Unterkante: fährt der Rollladen, laufen sie mit. */
+  .bkp-shutter { position: absolute; left: 0; right: 0; top: 0; z-index: 2; background-image: linear-gradient(#d6cfc3 0 9px, #bcb4a6 9px 11px); background-size: 100% 11px; background-position: left bottom; background-repeat: repeat-y; border-bottom: 4px solid #9d9485; box-sizing: border-box; box-shadow: 0 2px 4px rgb(0 0 0 / 0.25); transition: height 0.4s ease-out; }
+  .bkp-win.moving .bkp-shutter { transition: none; }
+  .bkp-shutter[style*="height:0%"], .bkp-shutter[style*="height: 0%"] { border-bottom-width: 0; }
   .bkp-grip { position: absolute; left: 50%; z-index: 3; width: 30px; height: 6px; margin: -3px 0 0 -15px; border-radius: 3px; background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 0.35); }
   .bkp-side { position: relative; display: grid; gap: 6px; justify-items: start; min-width: 0; }
   .bkp-side small { font-size: 12px; opacity: 0.8; }
   .bkp-side b { font-size: 18px; font-weight: 500; }
   .bkp-num { font-size: 40px; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
-  .bkp-num span { font-size: 18px; margin-left: 2px; }
+  .bkp-num span:not(.bkp-numv) { font-size: 18px; margin-left: 2px; }
   .bkp-cta { border: 0; border-radius: 999px; padding: 7px 14px; background: #4a3510; color: #fff3d6; font-size: 12.5px; font-weight: 500; }
 
   /* Klima */
@@ -322,8 +325,8 @@ export const overlayCss = `
     .bkp-shutterview .bkp-row { position: absolute; right: 6px; bottom: 6px; flex-direction: column; gap: 4px; }
     .bkp-shutterview .bkp-rb { width: 28px; height: 28px; }
     .bkp-num { font-size: 22px; }
-    .bkp-num span { font-size: 12px; }
-    .bkp-num span { font-size: 14px; }
+    .bkp-num span:not(.bkp-numv) { font-size: 12px; }
+    .bkp-num span:not(.bkp-numv) { font-size: 14px; }
     .bkp-side small { font-size: 11px; }
     .bkp-side b { font-size: 14px; }
     .bkp-row { gap: 4px; }

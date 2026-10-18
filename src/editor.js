@@ -15,6 +15,7 @@ import {
 } from "./common.js";
 import { SUN_TIP_DEFAULTS, angleDiff, directionName, sunPos } from "./sun.js";
 import "./direction-map.js";
+import { travelTimes } from "./travel.js";
 
 const EDITOR = "bereichskarte-plus-editor";
 
@@ -477,6 +478,20 @@ class BereichskartePlusEditor extends LitElement {
     `;
   }
 
+  _travelHint(entity) {
+    if (!entity) return nothing;
+    const t = travelTimes(this.hass, entity, () => this.requestUpdate());
+    const f = (v) => v.toLocaleString("de-DE", { maximumFractionDigits: 1 });
+    let text;
+    if (!t) text = "Fahrzeiten werden aus dem Verlauf gelesen …";
+    else if (t.open || t.close) {
+      text = `Fahrzeit aus dem Verlauf des Rollladens: ganz hoch ${t.open ? `${f(t.open)} s` : "unbekannt"}, ganz runter ${t.close ? `${f(t.close)} s` : "unbekannt"}. Damit läuft die Animation so schnell wie der echte Rollladen.`;
+    } else {
+      text = "Noch keine Fahrten im Verlauf gefunden. Bis dahin rechnet die Animation mit 20 Sekunden.";
+    }
+    return html`<div class="hint">${text}</div>`;
+  }
+
   _renderShutterSection(area) {
     const sv = this._config.shutter_view || {};
     const auto = areaDomainIds(this.hass, area?.area_id, "cover")[0];
@@ -502,6 +517,7 @@ class BereichskartePlusEditor extends LitElement {
                   : "Im Bereich ist kein Rollladen. Wähle einen aus.",
                 (value) => this._setSub("shutter_view", { entity: value })
               )}
+              ${this._travelHint(sv.entity || auto)}
               ${this._selector(
                 { boolean: {} },
                 Boolean(sv.follow_moves),

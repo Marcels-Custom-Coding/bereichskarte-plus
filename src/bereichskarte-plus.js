@@ -11,10 +11,11 @@ import {
   sensorsFromConfig,
 } from "./common.js";
 import { computeSunTip } from "./sun.js";
+import { livePosition, travelTimes } from "./travel.js";
 import { overlayCss, renderOverlay } from "./views.js";
 import "./editor.js";
 
-const VERSION = "0.2.4";
+const VERSION = "0.3.0";
 const CARD = "bereichskarte-plus";
 const EDITOR = `${CARD}-editor`;
 const POWER_TO_WATT = { mW: 0.001, W: 1, kW: 1000, MW: 1e6 };
@@ -84,6 +85,8 @@ function defineCard(Base) {
       super.disconnectedCallback?.();
       clearTimeout(this._viewTimer);
       clearInterval(this._histTimer);
+      if (this._raf) cancelAnimationFrame(this._raf);
+      this._raf = null;
     }
 
     // ---------- Infozeile ----------
@@ -154,13 +157,33 @@ function defineCard(Base) {
         pos,
         moving: st.state === "opening" || st.state === "closing",
         canSet: Boolean((st.attributes.supported_features ?? 0) & 4),
+        times: travelTimes(this.hass, cfg.entity, () => this.requestUpdate()),
       };
     }
 
+    // Beim Fahren zwischen den Meldungen weiterrechnen, damit es flüssig läuft.
     _shownPos(sh) {
       if (this._dragPos != null) return this._dragPos;
       if (this._pendingPos != null && !sh.moving) return this._pendingPos;
+      if (sh.moving) return livePosition(sh.st, sh.times) ?? sh.pos;
       return sh.pos;
+    }
+
+    _tick() {
+      this._raf = null;
+      const sh = this._cover();
+      if (!sh?.moving || this._view !== "shutter" || this._dragPos != null) return;
+      const pos = this._shownPos(sh);
+      const root = this.shadowRoot;
+      const shutter = root?.querySelector(".bkp-shutter");
+      if (shutter) shutter.style.height = `${100 - pos}%`;
+      const grip = root?.querySelector(".bkp-grip");
+      if (grip) grip.style.top = `${100 - pos}%`;
+      // Nur den Textknoten ändern, den Lit selbst verwaltet.
+      const num = root?.querySelector(".bkp-numv");
+      const text = num && [...num.childNodes].find((n) => n.nodeType === 3);
+      if (text) text.nodeValue = String(Math.round(pos));
+      this._raf = requestAnimationFrame(() => this._tick());
     }
 
     _roomTemp() {
@@ -475,6 +498,9 @@ function defineCard(Base) {
       this._renderIcons();
       this._watchCover();
       this._renderOverlay();
+      if (this._view === "shutter" && !this._raf && this._cover()?.moving) {
+        this._raf = requestAnimationFrame(() => this._tick());
+      }
     }
   }
   customElements.define(CARD, BereichskartePlus);

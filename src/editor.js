@@ -164,7 +164,17 @@ class BereichskartePlusEditor extends LitElement {
     return stateObj?.attributes.friendly_name || entityId;
   }
 
+  // Gleiche Auswahl = gleiches Objekt, sonst baut HA die Listen bei jedem
+  // Zustandswechsel neu auf (bei tausenden Entitäten spürbar langsam).
+  _stable(selector) {
+    this._selectors ||= new Map();
+    const key = JSON.stringify(selector);
+    if (!this._selectors.has(key)) this._selectors.set(key, selector);
+    return this._selectors.get(key);
+  }
+
   _selector(selector, value, label, helper, onChange) {
+    selector = this._stable(selector);
     return html`<ha-selector
       .hass=${this.hass}
       .required=${false}

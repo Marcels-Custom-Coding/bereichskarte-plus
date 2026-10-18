@@ -15,7 +15,7 @@ import { livePosition, travelTimes } from "./travel.js";
 import { overlayCss, renderOverlay } from "./views.js";
 import "./editor.js";
 
-const VERSION = "0.3.2";
+const VERSION = "0.3.3";
 const CARD = "bereichskarte-plus";
 const EDITOR = `${CARD}-editor`;
 const POWER_TO_WATT = { mW: 0.001, W: 1, kW: 1000, MW: 1e6 };

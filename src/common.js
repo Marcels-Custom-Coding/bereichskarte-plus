@@ -69,9 +69,28 @@ export function formatState(hass, stateObj) {
   return withUnit(stateObj.state, stateObj.attributes.unit_of_measurement);
 }
 
+// Suchen über alle Entitäten sind teuer (bei Marcel ~4500). Ergebnisse gelten,
+// bis sich die Entitätenliste ändert; Home Assistant ersetzt dann hass.entities.
+const lookups = new WeakMap();
+function cached(hass, key, compute) {
+  let map = lookups.get(hass.entities);
+  if (!map) {
+    map = new Map();
+    lookups.set(hass.entities, map);
+  }
+  if (!map.has(key)) map.set(key, compute());
+  return map.get(key);
+}
+
 // Alle Entitäten eines Bereichs: eigener Bereich oder der Bereich des Geräts.
 export function areaEntityIds(hass, areaId, deviceClass) {
   if (!hass || !areaId) return [];
+  return cached(hass, `sensor|${areaId}|${deviceClass ?? ""}`, () =>
+    findAreaSensors(hass, areaId, deviceClass)
+  );
+}
+
+function findAreaSensors(hass, areaId, deviceClass) {
   const result = [];
   for (const [entityId, entry] of Object.entries(hass.entities || {})) {
     if (!entityId.startsWith("sensor.")) continue;
@@ -181,6 +200,10 @@ export function sensorsFromConfig(config) {
 // Entitäten einer Domäne im Bereich (eigener Bereich oder Bereich des Geräts).
 export function areaDomainIds(hass, areaId, domain) {
   if (!hass || !areaId) return [];
+  return cached(hass, `domain|${areaId}|${domain}`, () => findAreaDomain(hass, areaId, domain));
+}
+
+function findAreaDomain(hass, areaId, domain) {
   return Object.entries(hass.entities || {})
     .filter(([id, entry]) => {
       if (!id.startsWith(`${domain}.`) || entry.entity_category || entry.hidden) {
@@ -196,6 +219,11 @@ export function areaDomainIds(hass, areaId, domain) {
 
 // Klimagerät: eines, das kühlen kann, sonst das erste.
 export function pickClimate(hass, areaId) {
+  if (!hass || !areaId) return undefined;
+  return cached(hass, `climate|${areaId}`, () => findClimate(hass, areaId));
+}
+
+function findClimate(hass, areaId) {
   const ids = areaDomainIds(hass, areaId, "climate");
   return (
     ids.find((id) => hass.states[id].attributes.hvac_modes?.includes("cool")) ||
@@ -205,6 +233,11 @@ export function pickClimate(hass, areaId) {
 
 // Leistungssensor am selben Gerät, Mittelwerte zuletzt.
 export function pickPower(hass, climateId) {
+  if (!hass || !climateId) return undefined;
+  return cached(hass, `power|${climateId}`, () => findPower(hass, climateId));
+}
+
+function findPower(hass, climateId) {
   const device = hass.entities?.[climateId]?.device_id;
   if (!device) return undefined;
   const ids = Object.entries(hass.entities)

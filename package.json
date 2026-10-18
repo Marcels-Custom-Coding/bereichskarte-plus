@@ -1,0 +1,17 @@
+{
+  "name": "bereichskarte-plus",
+  "version": "0.1.0",
+  "description": "Bereichskarte für Home Assistant mit frei wählbaren Werten",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/bereichskarte-plus.js --bundle --format=esm --minify --target=es2021 --outfile=dist/bereichskarte-plus.js"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.25.12"
+  },
+  "dependencies": {
+    "lit": "^3.3.3"
+  }
+}

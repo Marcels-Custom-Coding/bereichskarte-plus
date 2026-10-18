@@ -166,6 +166,7 @@ class BereichskartePlusEditor extends LitElement {
   _selector(selector, value, label, helper, onChange) {
     return html`<ha-selector
       .hass=${this.hass}
+      .required=${false}
       .selector=${selector}
       .value=${value}
       .label=${label}

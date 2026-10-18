@@ -13,6 +13,16 @@ Alles im grafischen Editor, Abschnitt **Werte in der Infozeile**:
 - **Beliebiger Sensor**: zeigt den Zustand genau eines Sensors.
 - Reihenfolge ändern, Werte entfernen, **Symbole vor den Werten** ein- oder ausschalten, eigene Symbole wählen.
 
+## Ansichten im Bild
+
+**Rollladen:** Fährst du den Rollladen über die Taste unten, zeigt das Bild ein Fenster. Am weißen Griff ziehst du die Höhe, daneben stehen Auf, Stopp und Zu.
+
+**Sonnenschutz-Tipp:** Scheint die Sonne aufs Fenster, erscheint im Bild „Sonnenschutz 30 %?“. Ein Tipp öffnet die Rollladen-Ansicht mit „Übernehmen“. Die Karte fährt nie von selbst. Die Fensterrichtung wählst du im Editor auf einer Karte: Hauswand antippen, fertig.
+
+**Klima:** Oben rechts im Bild steht ein kleines Klima-Feld. Ein Tipp öffnet die Bedienung mit an und aus, Betriebsart, Zieltemperatur und Leistung, auf Wunsch mit Leistungsverlauf an der Seite.
+
+Nach 20 Sekunden ohne Berührung geht die Karte zurück zum Bild (einstellbar).
+
 ## Installation
 
 HACS → oben rechts ⋮ → **Benutzerdefinierte Repositories** → diese Adresse, Typ **Dashboard**. Danach „Bereichskarte Plus“ herunterladen und die Seite neu laden.
@@ -38,6 +48,19 @@ sensors:
   - type: entity
     entity: sensor.co2
     icon: mdi:molecule-co2
+shutter_view:
+  entity: cover.marcel_rolladen
+  sun_tip:
+    direction: 162
+    position: 30
+    lux_entity: sensor.wettersensor_beleuchtungsstarke
+    lux_threshold: 20000
+climate_view:
+  entity: climate.klimaanlage
+  power_entity: sensor.klimaanlage_leistung
+  show_history: true
+  history_hours: 6
+view_timeout: 20
 features:
   - type: area-controls
 ```

@@ -316,11 +316,13 @@ export const overlayCss = `
     .bkp-unit { top: 38%; width: 66%; height: 22%; }
     .bkp-air { top: 56%; height: 40%; }
     .bkp-shutterview { gap: 5%; padding: 0 5%; }
-    .bkp-win { height: 60%; border-width: 4px; }
+    .bkp-shutterview:not(.sunny) { padding-right: 40px; }
+    .bkp-win { height: 56%; border-width: 4px; }
     .bkp-side { gap: 4px; position: static; }
     .bkp-shutterview .bkp-row { position: absolute; right: 6px; bottom: 6px; flex-direction: column; gap: 4px; }
     .bkp-shutterview .bkp-rb { width: 28px; height: 28px; }
-    .bkp-num { font-size: 24px; }
+    .bkp-num { font-size: 22px; }
+    .bkp-num span { font-size: 12px; }
     .bkp-num span { font-size: 14px; }
     .bkp-side small { font-size: 11px; }
     .bkp-side b { font-size: 14px; }

@@ -43,7 +43,8 @@ export function renderPills(c) {
   }
   const cl = c._climate();
   if (cl) {
-    const on = cl.st.state !== "off";
+    const offline = ["unavailable", "unknown"].includes(cl.st.state);
+    const on = !offline && cl.st.state !== "off";
     pills.push(html`<button
       class="bkp-pill climate ${on ? `on m-${cl.st.state}` : ""}"
       @click=${(ev) => c._openView(ev, "climate")}
@@ -53,7 +54,9 @@ export function renderPills(c) {
         ? html`${typeof cl.target === "number" ? `${fmtTemp(cl.target)}°` : ""}${cl.power
             ? html`<span class="dot">·</span>${cl.power}`
             : nothing}`
-        : "Klima aus"}
+        : offline
+          ? "Klima nicht erreichbar"
+          : "Klima aus"}
     </button>`);
   }
   return pills.length ? html`<div class="bkp-pills">${pills}</div>` : nothing;
@@ -157,7 +160,8 @@ export function renderClimateView(c) {
   if (!cl) return nothing;
   const cfg = c._climateCfg();
   const st = cl.st;
-  const mode = st.state;
+  const offline = ["unavailable", "unknown"].includes(st.state);
+  const mode = offline ? "off" : st.state;
   const on = mode !== "off";
   const action = st.attributes.hvac_action;
   const blowing = on && (!action || !["idle", "off"].includes(action));
@@ -179,7 +183,7 @@ export function renderClimateView(c) {
         : nothing}
     </div>
     <span class="bkp-chip">
-      ${on ? modeName(mode) : "Aus"}${cl.power
+      ${offline ? "Nicht erreichbar" : on ? modeName(mode) : "Aus"}${cl.power
         ? html` · ${cl.power}`
         : nothing}${on && action === "idle" ? " · wartet" : ""}
     </span>
@@ -187,22 +191,23 @@ export function renderClimateView(c) {
     <div class="bkp-bar">
       <button
         class="bkp-rb ${on ? "power-on" : ""}"
+        ?disabled=${offline}
         title=${on ? "Ausschalten" : "Einschalten"}
         @click=${() => c._climateToggle()}
       >
         <ha-icon icon="mdi:power"></ha-icon>
       </button>
-      <button class="bkp-rb flat" title="Kälter" ?disabled=${typeof target !== "number"} @click=${() => c._climateStep(-1)}>
+      <button class="bkp-rb flat" title="Kälter" ?disabled=${offline || typeof target !== "number"} @click=${() => c._climateStep(-1)}>
         <ha-icon icon="mdi:minus"></ha-icon>
       </button>
       <span class="bkp-target">${typeof target === "number" ? html`${fmtTemp(target)}<span class="unit"> °C</span>` : "–"}</span>
-      <button class="bkp-rb flat" title="Wärmer" ?disabled=${typeof target !== "number"} @click=${() => c._climateStep(1)}>
+      <button class="bkp-rb flat" title="Wärmer" ?disabled=${offline || typeof target !== "number"} @click=${() => c._climateStep(1)}>
         <ha-icon icon="mdi:plus"></ha-icon>
       </button>
       <button
         class="bkp-rb flat"
         title="Betriebsart wechseln"
-        ?disabled=${modes.length < 2 && on}
+        ?disabled=${offline || (modes.length < 2 && on)}
         @click=${() => c._climateCycle(modes)}
       >
         <ha-icon .icon=${modeIcon(on ? mode : modes[0])}></ha-icon>

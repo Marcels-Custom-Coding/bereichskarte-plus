@@ -6,12 +6,12 @@ var ne=Object.defineProperty;var oe=(o,t,i)=>t in o?ne(o,t,{enumerable:!0,config
     >
       <ha-icon icon="mdi:white-balance-sunny"></ha-icon>
       ${i.kind==="close"?`Sonnenschutz ${i.target} %?`:"Wieder \xF6ffnen?"}
-    </button>`);let s=o._climate();if(s){let e=s.st.state!=="off";t.push(d`<button
-      class="bkp-pill climate ${e?`on m-${s.st.state}`:""}"
-      @click=${n=>o._openView(n,"climate")}
+    </button>`);let s=o._climate();if(s){let e=["unavailable","unknown"].includes(s.st.state),n=!e&&s.st.state!=="off";t.push(d`<button
+      class="bkp-pill climate ${n?`on m-${s.st.state}`:""}"
+      @click=${r=>o._openView(r,"climate")}
     >
-      <ha-icon .icon=${e?Gt(s.st.state):"mdi:air-conditioner"}></ha-icon>
-      ${e?d`${typeof s.target=="number"?`${Yt(s.target)}\xB0`:""}${s.power?d`<span class="dot">·</span>${s.power}`:u}`:"Klima aus"}
+      <ha-icon .icon=${n?Gt(s.st.state):"mdi:air-conditioner"}></ha-icon>
+      ${n?d`${typeof s.target=="number"?`${Yt(s.target)}\xB0`:""}${s.power?d`<span class="dot">·</span>${s.power}`:u}`:e?"Klima nicht erreichbar":"Klima aus"}
     </button>`)}return t.length?d`<div class="bkp-pills">${t}</div>`:u}function ze(o,t){let s=100-o._shownPos(t);return d`<div
     class="bkp-win ${t.canSet?"drag":""} ${t.moving||o._dragPos!=null?"moving":""}"
     @pointerdown=${e=>o._windowDown(e)}
@@ -53,43 +53,44 @@ var ne=Object.defineProperty;var oe=(o,t,i)=>t in o?ne(o,t,{enumerable:!0,config
       ${bt`<path class="area" d="${l} V40 H0 Z"></path><path class="line" d="${l}"></path>`}
     </svg>
     <small class="max">max ${o._formatWatt(n)}</small>
-  </div>`}function Ne(o){let t=o._climate();if(!t)return u;let i=o._climateCfg(),s=t.st,e=s.state,n=e!=="off",r=s.attributes.hvac_action,a=n&&(!r||!["idle","off"].includes(r)),l=o._pendingTarget??t.target,c=(s.attributes.hvac_modes||[]).filter(p=>p!=="off");return d`<div
-    class="bkp-view bkp-climateview m-${n?e:"off"} ${i.show_history?"with-hist":""}"
+  </div>`}function Ne(o){let t=o._climate();if(!t)return u;let i=o._climateCfg(),s=t.st,e=["unavailable","unknown"].includes(s.state),n=e?"off":s.state,r=n!=="off",a=s.attributes.hvac_action,l=r&&(!a||!["idle","off"].includes(a)),c=o._pendingTarget??t.target,p=(s.attributes.hvac_modes||[]).filter(h=>h!=="off");return d`<div
+    class="bkp-view bkp-climateview m-${r?n:"off"} ${i.show_history?"with-hist":""}"
   >
     <div class="bkp-stage">
       <div class="bkp-unit"><i></i></div>
-      ${a?d`<svg class="bkp-air" viewBox="0 0 100 60" aria-hidden="true">
+      ${l?d`<svg class="bkp-air" viewBox="0 0 100 60" aria-hidden="true">
             ${bt`<path d="M28,4 C24,18 34,26 29,40"></path>
               <path d="M50,4 C46,18 56,26 51,40"></path>
               <path d="M72,4 C68,18 78,26 73,40"></path>`}
           </svg>`:u}
     </div>
     <span class="bkp-chip">
-      ${n?Ce(e):"Aus"}${t.power?d` · ${t.power}`:u}${n&&r==="idle"?" \xB7 wartet":""}
+      ${e?"Nicht erreichbar":r?Ce(n):"Aus"}${t.power?d` · ${t.power}`:u}${r&&a==="idle"?" \xB7 wartet":""}
     </span>
     ${i.show_history?Le(o,t):u}
     <div class="bkp-bar">
       <button
-        class="bkp-rb ${n?"power-on":""}"
-        title=${n?"Ausschalten":"Einschalten"}
+        class="bkp-rb ${r?"power-on":""}"
+        ?disabled=${e}
+        title=${r?"Ausschalten":"Einschalten"}
         @click=${()=>o._climateToggle()}
       >
         <ha-icon icon="mdi:power"></ha-icon>
       </button>
-      <button class="bkp-rb flat" title="Kälter" ?disabled=${typeof l!="number"} @click=${()=>o._climateStep(-1)}>
+      <button class="bkp-rb flat" title="Kälter" ?disabled=${e||typeof c!="number"} @click=${()=>o._climateStep(-1)}>
         <ha-icon icon="mdi:minus"></ha-icon>
       </button>
-      <span class="bkp-target">${typeof l=="number"?d`${Yt(l)}<span class="unit"> °C</span>`:"\u2013"}</span>
-      <button class="bkp-rb flat" title="Wärmer" ?disabled=${typeof l!="number"} @click=${()=>o._climateStep(1)}>
+      <span class="bkp-target">${typeof c=="number"?d`${Yt(c)}<span class="unit"> °C</span>`:"\u2013"}</span>
+      <button class="bkp-rb flat" title="Wärmer" ?disabled=${e||typeof c!="number"} @click=${()=>o._climateStep(1)}>
         <ha-icon icon="mdi:plus"></ha-icon>
       </button>
       <button
         class="bkp-rb flat"
         title="Betriebsart wechseln"
-        ?disabled=${c.length<2&&n}
-        @click=${()=>o._climateCycle(c)}
+        ?disabled=${e||p.length<2&&r}
+        @click=${()=>o._climateCycle(p)}
       >
-        <ha-icon .icon=${Gt(n?e:c[0])}></ha-icon>
+        <ha-icon .icon=${Gt(r?n:p[0])}></ha-icon>
       </button>
     </div>
   </div>`}function Xt(o){let t=o._view;return d`
@@ -575,7 +576,7 @@ var ne=Object.defineProperty;var oe=(o,t,i)=>t in o?ne(o,t,{enumerable:!0,config
     .add:active {
       transform: scale(0.97);
     }
-  `);customElements.define(Oe,j);var Be="0.3.1",ot="bereichskarte-plus",Ie=`${ot}-editor`,Ve={mW:.001,W:1,kW:1e3,MW:1e6},se=new CSSStyleSheet;se.replaceSync(`
+  `);customElements.define(Oe,j);var Be="0.3.2",ot="bereichskarte-plus",Ie=`${ot}-editor`,Ve={mW:.001,W:1,kW:1e3,MW:1e6},se=new CSSStyleSheet;se.replaceSync(`
   .bkp-values {
     display: block;
     width: 100%;

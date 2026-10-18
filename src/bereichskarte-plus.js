@@ -15,7 +15,7 @@ import { livePosition, travelTimes } from "./travel.js";
 import { overlayCss, renderOverlay } from "./views.js";
 import "./editor.js";
 
-const VERSION = "0.3.3";
+const VERSION = "0.3.4";
 const CARD = "bereichskarte-plus";
 const EDITOR = `${CARD}-editor`;
 const POWER_TO_WATT = { mW: 0.001, W: 1, kW: 1000, MW: 1e6 };
@@ -54,6 +54,8 @@ async function loadAreaCard() {
   }
   return customElements.whenDefined("hui-area-card");
 }
+
+let editorPreload;
 
 function defineCard(Base) {
   class BereichskartePlus extends Base {
@@ -503,6 +505,12 @@ function defineCard(Base) {
         );
       }
       if (!this.hass || !this._config) return;
+      // Editor-Code für Admins vorladen, damit „Bearbeiten“ gleich aufgeht.
+      if (!editorPreload && this.hass.user?.is_admin) {
+        editorPreload = setTimeout(() => {
+          Base.getConfigElement().catch(() => {});
+        }, 4000);
+      }
       // Startansicht beim ersten Mal und wenn sie im Editor geändert wird.
       const start = this._defaultView();
       if (start !== this._lastDefault) {

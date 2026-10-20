@@ -13,11 +13,13 @@ Alles im grafischen Editor, Abschnitt **Werte in der Infozeile**:
 - **Beliebiger Sensor**: zeigt den Zustand genau eines Sensors.
 - Reihenfolge ändern, Werte entfernen, **Symbole vor den Werten** ein- oder ausschalten, eigene Symbole wählen.
 
+Abschnitt **Tasten unten**: Jede Taste der Bereichssteuerung schaltet alle Geräte ihrer Art im Bereich. Hier schaltest du ab, was die Taste in Ruhe lassen soll (landet als `exclude_entities` in der Karte).
+
 ## Ansichten im Bild
 
 **Rollladen:** Fährst du den Rollladen über die Taste unten, zeigt das Bild ein Fenster. Am weißen Griff ziehst du die Höhe, daneben stehen Auf, Stopp und Zu.
 
-**Sonnenschutz-Tipp:** Scheint die Sonne aufs Fenster, erscheint im Bild „Sonnenschutz 30 %?“. Ein Tipp öffnet die Rollladen-Ansicht mit „Übernehmen“. Die Karte fährt nie von selbst. Die Fensterrichtung wählst du im Editor auf einer Karte: Hauswand antippen, fertig.
+**Sonnenschutz-Tipp:** Scheint die Sonne aufs Fenster, erscheint im Bild „Sonnenschutz 30 %?“. Ein Tipp öffnet die Rollladen-Ansicht mit „Übernehmen“. Die Karte fährt nie von selbst. Die Fensterrichtung wählst du im Editor auf einer Karte: Hauswand antippen, fertig. Fährt der Rollladen, schweigt der Tipp; fährst du ihn selbst oder fährt er von allein, pausiert er danach eine Stunde (`pause_minutes`).
 
 **Klima:** Oben rechts im Bild steht ein kleines Klima-Feld. Ein Tipp öffnet die Bedienung mit an und aus, Betriebsart, Zieltemperatur und Leistung, auf Wunsch mit Leistungsverlauf an der Seite.
 
@@ -55,6 +57,9 @@ shutter_view:
     position: 30
     lux_entity: sensor.wettersensor_beleuchtungsstarke
     lux_threshold: 20000
+    pause_minutes: 60
+exclude_entities:
+  - switch.steckdose_drucker
 climate_view:
   entity: climate.klimaanlage
   power_entity: sensor.klimaanlage_leistung

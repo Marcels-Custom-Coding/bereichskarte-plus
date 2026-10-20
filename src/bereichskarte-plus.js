@@ -10,12 +10,12 @@ import {
   pickPower,
   sensorsFromConfig,
 } from "./common.js";
-import { computeSunTip } from "./sun.js";
+import { SUN_TIP_DEFAULTS, computeSunTip } from "./sun.js";
 import { livePosition, travelTimes } from "./travel.js";
 import { overlayCss, renderOverlay } from "./views.js";
 import "./editor.js";
 
-const VERSION = "0.3.5";
+const VERSION = "0.3.6";
 const CARD = "bereichskarte-plus";
 const EDITOR = `${CARD}-editor`;
 const POWER_TO_WATT = { mW: 0.001, W: 1, kW: 1000, MW: 1e6 };
@@ -27,17 +27,17 @@ cardStyles.replaceSync(`
   .bkp-values {
     display: flex;
     flex-wrap: wrap;
-    column-gap: 7px;
+    column-gap: 4px;
     width: 100%;
   }
   .bkp-value {
     display: inline-flex;
     align-items: center;
-    gap: 1px;
+    gap: 0;
     white-space: nowrap;
   }
   .bkp-value ha-icon {
-    --mdc-icon-size: 14px;
+    --mdc-icon-size: 13px;
     color: var(--secondary-text-color);
   }
   ${overlayCss}
@@ -220,9 +220,13 @@ function defineCard(Base) {
       return Number.isNaN(value) ? undefined : value;
     }
 
+    // Kein Tipp, solange der Rollladen fährt oder gezogen wird, und eine
+    // Weile nicht, nachdem er von Hand oder von allein gefahren ist. Wer
+    // selbst eingreift, will gerade keinen Vorschlag.
     _sunTip() {
       const sh = this._cover();
-      if (!sh) return null;
+      if (!sh || sh.moving || this._dragPos != null) return null;
+      if (Date.now() < this._tipPausedUntil()) return null;
       return computeSunTip(
         this.hass,
         this._shutterCfg().sun_tip,
@@ -231,15 +235,49 @@ function defineCard(Base) {
       );
     }
 
+    _tipPauseKey() {
+      return `bkp-tip-pause-${this._shutterCfg()?.entity}`;
+    }
+
+    _tipPausedUntil() {
+      if (this._tipPause == null) {
+        let stored = 0;
+        try {
+          stored = Number(localStorage.getItem(this._tipPauseKey()));
+        } catch (err) {
+          // ohne Speicher gilt nur die laufende Seite
+        }
+        this._tipPause = Number.isFinite(stored) ? stored : 0;
+      }
+      return this._tipPause;
+    }
+
+    _pauseTip() {
+      const cfg = this._shutterCfg();
+      if (!cfg) return;
+      const minutes =
+        cfg.sun_tip?.pause_minutes ?? SUN_TIP_DEFAULTS.pause_minutes;
+      this._tipPause = Date.now() + minutes * 60000;
+      try {
+        localStorage.setItem(this._tipPauseKey(), String(this._tipPause));
+      } catch (err) {
+        // egal
+      }
+    }
+
     _coverCmd(service) {
       const cfg = this._shutterCfg();
       this._pendingPos = null;
+      this._pauseTip();
       this.hass.callService("cover", service, {}, { entity_id: cfg.entity });
       this._bump();
     }
 
-    _coverTo(position) {
+    _coverTo(position, fromTip = false) {
       const cfg = this._shutterCfg();
+      // Eine Fahrt, die der Tipp selbst auslöst, zählt nicht als Handbedienung.
+      if (fromTip) this._tipMoveUntil = Date.now() + 90000;
+      else this._pauseTip();
       this._pendingPos = position;
       this._pendingSince = Date.now();
       this.hass.callService(
@@ -500,13 +538,11 @@ function defineCard(Base) {
       }
       const armed =
         Date.now() < (this._armedUntil || 0) || this._shutterCfg().follow_moves;
-      if (
-        this._lastCoverState &&
-        state !== this._lastCoverState &&
-        sh.moving &&
-        armed &&
-        this._view !== "shutter"
-      ) {
+      const started =
+        this._lastCoverState && state !== this._lastCoverState && sh.moving;
+      // Fährt er los, ohne dass der Tipp es angestoßen hat: Tipp pausieren.
+      if (started && Date.now() > (this._tipMoveUntil || 0)) this._pauseTip();
+      if (started && armed && this._view !== "shutter") {
         this._setView("shutter");
       }
       this._lastCoverState = state;

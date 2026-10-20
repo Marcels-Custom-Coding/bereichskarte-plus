@@ -92,14 +92,14 @@ export function renderShutterView(c) {
     side = html`<small>Sonne steht auf dem Fenster</small>
       <b>Empfohlen ${tip.target} %</b>
       <small>jetzt ${shown} % offen</small>
-      <button class="bkp-cta" @click=${() => c._coverTo(tip.target)}>
+      <button class="bkp-cta" @click=${() => c._coverTo(tip.target, true)}>
         Übernehmen
       </button>`;
   } else if (tip?.kind === "open") {
     side = html`<small>Die Sonne ist weg</small>
       <b>Wieder öffnen?</b>
       <small>jetzt ${shown} % offen</small>
-      <button class="bkp-cta" @click=${() => c._coverTo(tip.target)}>
+      <button class="bkp-cta" @click=${() => c._coverTo(tip.target, true)}>
         Auf ${tip.target} %
       </button>`;
   } else {

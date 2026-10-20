@@ -48,6 +48,8 @@ export const SUN_TIP_DEFAULTS = {
   min_elevation: 5,
   reopen: true,
   reopen_position: 100,
+  // Nach einer Fahrt von Hand (oder von allein) schweigt der Tipp so lange.
+  pause_minutes: 60,
 };
 
 function onWall(sun, cfg) {

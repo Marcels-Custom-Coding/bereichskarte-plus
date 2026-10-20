@@ -147,6 +147,13 @@ export function formatWatt(hass, watt) {
   return withUnit(formatNumber(hass, watt, Math.abs(watt) >= 10 ? 0 : 1), "W");
 }
 
+// In der Infozeile zählt jeder Pixel: zwischen Zahl und Einheit nur ein
+// schmales Leerzeichen.
+const tight = (text) =>
+  typeof text === "string"
+    ? text.replace(/^(-?[\d.,]+)[\s ]+(\S{1,6})$/, "$1 $2")
+    : text;
+
 // Ein Wert der Infozeile: Text plus Symbol.
 export function computeItem(hass, area, item) {
   const kind = KINDS[item.type] ? item.type : "entity";
@@ -155,7 +162,7 @@ export function computeItem(hass, area, item) {
   if (kind === "entity") {
     const stateObj = item.entity ? hass.states[item.entity] : undefined;
     return {
-      text: formatState(hass, stateObj),
+      text: tight(formatState(hass, stateObj)),
       icon:
         item.icon || stateObj?.attributes.icon || KINDS.entity.icon,
     };
@@ -163,14 +170,17 @@ export function computeItem(hass, area, item) {
 
   if (kind === "power") {
     const sum = powerSum(hass, powerEntityIds(hass, area.area_id, item));
-    return { text: sum === undefined ? undefined : formatWatt(hass, sum), icon };
+    return {
+      text: sum === undefined ? undefined : tight(formatWatt(hass, sum)),
+      icon,
+    };
   }
 
   // Temperatur oder Luftfeuchte: gewählter Sensor, dann Bereichseinstellung,
   // zuletzt der Median aller passenden Sensoren im Bereich.
   const chosen = item.entity || area[`${kind}_entity_id`];
   if (chosen) {
-    return { text: formatState(hass, hass.states[chosen]), icon };
+    return { text: tight(formatState(hass, hass.states[chosen])), icon };
   }
   const values = [];
   let unit;
@@ -183,7 +193,7 @@ export function computeItem(hass, area, item) {
   }
   if (!values.length) return { text: undefined, icon };
   return {
-    text: withUnit(formatNumber(hass, median(values)), unit),
+    text: tight(withUnit(formatNumber(hass, median(values)), unit)),
     icon,
   };
 }

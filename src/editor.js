@@ -505,6 +505,13 @@ class BereichskartePlusEditor extends LitElement {
               (value) => this._setTip({ min_temp: value })
             )}
             ${this._selector(
+              this._num(0, 240, 5, "min", "box"),
+              tip.pause_minutes ?? d.pause_minutes,
+              "Nach einer Fahrt pausieren",
+              "Fährst du den Rollladen selbst oder fährt er von allein, schweigt der Tipp so lange. Während der Fahrt kommt nie einer.",
+              (value) => this._setTip({ pause_minutes: value })
+            )}
+            ${this._selector(
               { boolean: {} },
               tip.reopen ?? d.reopen,
               "Danach wieder öffnen vorschlagen",
@@ -584,6 +591,68 @@ class BereichskartePlusEditor extends LitElement {
   _toggleSection(key, ev) {
     this[key] = ev.target.open;
     this.requestUpdate();
+  }
+
+  // ---------- Tasten unten (Bereichssteuerung) ----------
+
+  // Die eingebaute Tastenleiste schaltet alle Geräte einer Art im Bereich.
+  // Hier lässt sich einzelnes herausnehmen; das landet in `exclude_entities`,
+  // das die Bereichskarte selbst versteht.
+  _toggleExclude(entityId, included) {
+    const excluded = new Set(this._config.exclude_entities || []);
+    if (included) excluded.delete(entityId);
+    else excluded.add(entityId);
+    const next = { ...this._config, exclude_entities: [...excluded] };
+    if (!next.exclude_entities.length) delete next.exclude_entities;
+    this._fire(next);
+  }
+
+  _renderControlsSection(area) {
+    const kinds = [
+      ["light", "Licht", "mdi:lightbulb"],
+      ["switch", "Schalter", "mdi:toggle-switch"],
+      ["cover", "Rollläden und Tore", "mdi:window-shutter"],
+      ["fan", "Lüfter", "mdi:fan"],
+    ];
+    const excluded = new Set(this._config.exclude_entities || []);
+    const groups = kinds
+      .map(([domain, label, icon]) => ({
+        label,
+        icon,
+        ids: areaDomainIds(this.hass, area?.area_id, domain),
+      }))
+      .filter((g) => g.ids.length);
+    return html`<details class="section" ?open=${this._openControls} @toggle=${(ev) => this._toggleSection("_openControls", ev)}>
+      <summary><ha-icon icon="mdi:gesture-tap-button"></ha-icon>Tasten unten</summary>
+      ${!this._openControls ? nothing : html`<div class="body">
+        <div class="hint">
+          Jede Taste unten schaltet alle Geräte ihrer Art im Bereich auf
+          einmal. Schalte ab, was die Taste in Ruhe lassen soll.
+        </div>
+        ${groups.length
+          ? groups.map(
+              (g) => html`<div class="ctl-head">
+                  <ha-icon .icon=${g.icon}></ha-icon>${g.label}
+                </div>
+                <div class="power-list">
+                  ${g.ids.map((id) => {
+                    const included = !excluded.has(id);
+                    return html`<label class="power-row ${included ? "" : "off"}">
+                      <ha-switch
+                        .checked=${included}
+                        @change=${(ev) => this._toggleExclude(id, ev.target.checked)}
+                      ></ha-switch>
+                      <span class="power-name" title=${id}>${this._name(id)}</span>
+                      <span class="power-value"
+                        >${formatState(this.hass, this.hass.states[id]) ?? "–"}</span
+                      >
+                    </label>`;
+                  })}
+                </div>`
+            )
+          : html`<div class="hint">Im Bereich gibt es nichts, was die Tasten schalten könnten.</div>`}
+      </div>`}
+    </details>`;
   }
 
   _renderClimateSection(area) {
@@ -705,6 +774,9 @@ class BereichskartePlusEditor extends LitElement {
           <ha-svg-icon .path=${PATH_PLUS}></ha-svg-icon>
           Wert hinzufügen
         </button>
+      </div>
+      <div class="own">
+        ${this._renderControlsSection(area)}
       </div>
       <div class="own">
         <div class="own-title">
@@ -837,6 +909,16 @@ class BereichskartePlusEditor extends LitElement {
       border-radius: var(--ha-border-radius-md, 8px);
       background: var(--secondary-background-color);
       padding: 4px 0;
+    }
+    .ctl-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+      font-weight: var(--ha-font-weight-medium, 500);
+    }
+    .ctl-head ha-icon {
+      color: var(--secondary-text-color);
     }
     .power-row {
       display: flex;

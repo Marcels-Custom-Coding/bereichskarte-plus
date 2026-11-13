@@ -7,6 +7,7 @@ import {
   computeItem,
   formatState,
   formatWatt,
+  hasSelection,
   pickClimate,
   pickPower,
   powerEntityIds,
@@ -16,6 +17,7 @@ import {
 import { SUN_TIP_DEFAULTS, angleDiff, directionName, sunPos } from "./sun.js";
 import "./direction-map.js";
 import { travelTimes } from "./travel.js";
+import { modeName } from "./views.js";
 
 const EDITOR = "bereichskarte-plus-editor";
 
@@ -196,6 +198,45 @@ class BereichskartePlusEditor extends LitElement {
     this._updateItem(index, { exclude: [...exclude] });
   }
 
+  // Schalterliste der Sensoren, die in einen Wert einfließen: alle passenden
+  // im Bereich, dazu ein Feld für Sensoren aus anderen Bereichen.
+  _renderPool(item, index, area, deviceClass, nounPlural) {
+    const inArea = areaEntityIds(this.hass, area?.area_id, deviceClass);
+    const exclude = new Set(item.exclude || []);
+    return html`
+      ${inArea.length
+        ? html`<div class="power-list">
+            ${inArea.map((id) => {
+              const included = !exclude.has(id);
+              return html`<label class="power-row ${included ? "" : "off"}">
+                <ha-switch
+                  .checked=${included}
+                  @change=${(ev) =>
+                    this._togglePower(index, id, ev.target.checked)}
+                ></ha-switch>
+                <span class="power-name" title=${id}>${this._name(id)}</span>
+                <span class="power-value"
+                  >${formatState(this.hass, this.hass.states[id]) ?? "–"}</span
+                >
+              </label>`;
+            })}
+          </div>`
+        : html`<div class="hint">Im Bereich gibt es keine ${nounPlural}.</div>`}
+      ${this._selector(
+        {
+          entity: {
+            multiple: true,
+            filter: { domain: "sensor", device_class: deviceClass },
+          },
+        },
+        item.include || [],
+        `Weitere ${nounPlural}`,
+        "Sensoren aus anderen Bereichen, die hier mitzählen sollen.",
+        (value) => this._updateItem(index, { include: value })
+      )}
+    `;
+  }
+
   _name(entityId) {
     const stateObj = this.hass.states[entityId];
     return stateObj?.attributes.friendly_name || entityId;
@@ -227,8 +268,6 @@ class BereichskartePlusEditor extends LitElement {
   }
 
   _renderPower(item, index, area) {
-    const inArea = areaEntityIds(this.hass, area?.area_id, "power");
-    const exclude = new Set(item.exclude || []);
     const sum = powerSum(
       this.hass,
       powerEntityIds(this.hass, area?.area_id, item)
@@ -239,36 +278,7 @@ class BereichskartePlusEditor extends LitElement {
         was doppelt zählt (zum Beispiel ein Mittelwert-Sensor neben dem
         eigentlichen Messwert).
       </div>
-      ${inArea.length
-        ? html`<div class="power-list">
-            ${inArea.map((id) => {
-              const included = !exclude.has(id);
-              return html`<label class="power-row ${included ? "" : "off"}">
-                <ha-switch
-                  .checked=${included}
-                  @change=${(ev) =>
-                    this._togglePower(index, id, ev.target.checked)}
-                ></ha-switch>
-                <span class="power-name" title=${id}>${this._name(id)}</span>
-                <span class="power-value"
-                  >${formatState(this.hass, this.hass.states[id]) ?? "–"}</span
-                >
-              </label>`;
-            })}
-          </div>`
-        : html`<div class="hint">Im Bereich gibt es keine Leistungssensoren.</div>`}
-      ${this._selector(
-        {
-          entity: {
-            multiple: true,
-            filter: { domain: "sensor", device_class: "power" },
-          },
-        },
-        item.include || [],
-        "Weitere Leistungssensoren",
-        "Sensoren aus anderen Bereichen, die hier mitgezählt werden sollen.",
-        (value) => this._updateItem(index, { include: value })
-      )}
+      ${this._renderPool(item, index, area, "power", "Leistungssensoren")}
       <div class="total">
         Summe jetzt: <b>${sum === undefined ? "–" : formatWatt(this.hass, sum)}</b>
       </div>
@@ -278,20 +288,35 @@ class BereichskartePlusEditor extends LitElement {
   _renderClimate(item, index, area) {
     const kind = KINDS[item.type];
     const areaSetting = area?.[`${item.type}_entity_id`];
-    const fallback = areaSetting
-      ? `Leer lassen: nimmt „${this._name(areaSetting)}“ aus den Bereichseinstellungen.`
-      : `Leer lassen: Mittelwert aller ${kind.label}-Sensoren im Bereich.`;
-    return this._selector(
+    const custom = hasSelection(item);
+    const fallback = item.entity
+      ? "Dieser Sensor zählt allein."
+      : areaSetting && !custom
+        ? `Leer: nimmt „${this._name(areaSetting)}“ aus den Bereichseinstellungen. Schaltest du unten etwas um, gilt stattdessen der Mittelwert deiner Auswahl.`
+        : "Leer: Mittelwert der unten eingeschalteten Sensoren.";
+    const picker = this._selector(
       {
         entity: {
           filter: { domain: "sensor", device_class: kind.deviceClass },
         },
       },
       item.entity || "",
-      "Sensor",
+      "Fester Sensor",
       fallback,
       (value) => this._updateItem(index, { entity: value })
     );
+    if (item.entity) return picker;
+    const noun = `${kind.label}-Sensoren`;
+    const now = area ? computeItem(this.hass, area, item).text : undefined;
+    return html`
+      ${picker}
+      <div class="hint">
+        Schalte ab, was den Mittelwert verfälscht (zum Beispiel einen
+        Außenfühler oder einen Schimmelindikator).
+      </div>
+      ${this._renderPool(item, index, area, kind.deviceClass, noun)}
+      <div class="total">Mittelwert jetzt: <b>${now ?? "–"}</b></div>
+    `;
   }
 
   _renderItem(item, index, count, area) {
@@ -690,6 +715,23 @@ class BereichskartePlusEditor extends LitElement {
                   ? `Leer lassen: „${this._name(autoPower)}“ vom selben Gerät.`
                   : "Wähle den Sensor, der die Leistung der Anlage misst.",
                 (value) => this._setSub("climate_view", { power_entity: value })
+              )}
+              ${this._selector(
+                {
+                  select: {
+                    mode: "dropdown",
+                    options: [
+                      { value: "last", label: "Zuletzt genutzter Modus" },
+                      ...(this.hass.states[climate]?.attributes.hvac_modes || [])
+                        .filter((m) => m !== "off")
+                        .map((m) => ({ value: m, label: modeName(m) })),
+                    ],
+                  },
+                },
+                cv.on_mode || "last",
+                "Einschalten mit",
+                "In diesem Modus startet der Ein-Knopf. Der Knopf zeigt ihn als kleines Symbol an.",
+                (value) => this._setSub("climate_view", { on_mode: !value || value === "last" ? undefined : value })
               )}
               ${this._selector(
                 { boolean: {} },

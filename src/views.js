@@ -167,6 +167,7 @@ export function renderClimateView(c) {
   const blowing = on && (!action || !["idle", "off"].includes(action));
   const target = c._pendingTarget ?? cl.target;
   const modes = (st.attributes.hvac_modes || []).filter((m) => m !== "off");
+  const onMode = c._onMode(cl);
   return html`<div
     class="bkp-view bkp-climateview m-${on ? mode : "off"} ${cfg.show_history
       ? "with-hist"
@@ -185,6 +186,8 @@ export function renderClimateView(c) {
     <span class="bkp-chip">
       ${offline ? "Nicht erreichbar" : on ? modeName(mode) : "Aus"}${cl.power
         ? html` · ${cl.power}`
+        : nothing}${cl.average
+        ? html` · <span title="Mittel der letzten 60 Minuten">Ø ${cl.average}</span>`
         : nothing}${on && action === "idle" ? " · wartet" : ""}
     </span>
     ${cfg.show_history ? renderHistory(c, cl) : nothing}
@@ -192,10 +195,15 @@ export function renderClimateView(c) {
       <button
         class="bkp-rb ${on ? "power-on" : ""}"
         ?disabled=${offline}
-        title=${on ? "Ausschalten" : "Einschalten"}
+        title=${on ? "Ausschalten" : `Einschalten: ${modeName(onMode)}`}
         @click=${() => c._climateToggle()}
       >
         <ha-icon icon="mdi:power"></ha-icon>
+        ${!on && !offline && onMode
+          ? html`<span class="bkp-badge m-${onMode}"
+              ><ha-icon .icon=${modeIcon(onMode)}></ha-icon
+            ></span>`
+          : nothing}
       </button>
       <button class="bkp-rb flat" title="Kälter" ?disabled=${offline || typeof target !== "number"} @click=${() => c._climateStep(-1)}>
         <ha-icon icon="mdi:minus"></ha-icon>
@@ -206,13 +214,28 @@ export function renderClimateView(c) {
       </button>
       <button
         class="bkp-rb flat"
-        title="Betriebsart wechseln"
-        ?disabled=${offline || (modes.length < 2 && on)}
-        @click=${() => c._climateCycle(modes)}
+        title="Betriebsart wählen"
+        ?disabled=${offline || !modes.length}
+        @click=${() => c._toggleModeMenu()}
       >
-        <ha-icon .icon=${modeIcon(on ? mode : modes[0])}></ha-icon>
+        <ha-icon .icon=${modeIcon(on ? mode : onMode)}></ha-icon>
       </button>
     </div>
+    ${c._modeMenu && !offline
+      ? html`<div class="bkp-menu" @click=${() => c._toggleModeMenu()}>
+          ${modes.map(
+            (m) => html`<button
+              class="bkp-mode m-${m} ${on && m === mode ? "current" : ""}"
+              @click=${(ev) => {
+                ev.stopPropagation();
+                c._setMode(m);
+              }}
+            >
+              <ha-icon .icon=${modeIcon(m)}></ha-icon>${modeName(m)}
+            </button>`
+          )}
+        </div>`
+      : nothing}
   </div>`;
 }
 
@@ -310,6 +333,16 @@ export const overlayCss = `
   .bkp-bar { position: absolute; left: 10px; right: 10px; bottom: 10px; height: 46px; border-radius: 16px; background: rgb(255 255 255 / 0.78); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: space-between; padding: 0 5px; box-sizing: border-box; }
   .bkp-bar .bkp-rb.flat { background: transparent; box-shadow: none; }
   .bkp-bar .bkp-rb.power-on { background: var(--mc); color: #fff; }
+  .bkp-rb { position: relative; }
+  .bkp-badge { position: absolute; right: -4px; top: -4px; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: var(--bc, #2f86d4); box-shadow: 0 0 0 2px #fff; }
+  .bkp-badge ha-icon { --mdc-icon-size: 12px !important; }
+  .m-cool { --bc: #2f86d4; } .m-heat { --bc: #e2692f; } .m-auto, .m-heat_cool { --bc: #6b55c9; } .m-dry, .m-fan_only { --bc: #2a9d8f; }
+  .bkp-menu { position: absolute; inset: 0; z-index: 4; display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px; padding: 8px; box-sizing: border-box; align-content: center; background: rgb(255 255 255 / 0.82); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .bkp-mode { min-height: 44px; border: 0; border-radius: 14px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px; font-weight: 500; background: #fff; color: #2d3440; box-shadow: 0 1px 3px rgb(0 0 0 / 0.16); }
+  .bkp-mode ha-icon { color: var(--bc); }
+  .bkp-mode.current { background: var(--bc); color: #fff; }
+  .bkp-mode.current ha-icon { color: #fff; }
+  .bkp-mode:active { transform: scale(0.97); }
   .bkp-target { font-size: 20px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
   /* schmale Karten */
@@ -353,6 +386,9 @@ export const overlayCss = `
   .bkp-overlay.dark .bkp-unit { background: #3a3f47; }
   .bkp-overlay.dark .bkp-unit::after { background: #555b64; }
   .bkp-overlay.dark .bkp-chip, .bkp-overlay.dark .bkp-hist, .bkp-overlay.dark .bkp-bar { background: rgb(0 0 0 / 0.35); }
+  .bkp-overlay.dark .bkp-menu { background: rgb(20 22 26 / 0.8); }
+  .bkp-overlay.dark .bkp-mode { background: #3a3f47; color: #e8ecf2; }
+  .bkp-overlay.dark .bkp-mode.current { background: var(--bc); color: #fff; }
   .bkp-overlay.dark .bkp-rb { background: #3a3f47; color: #e8ecf2; }
   .bkp-overlay.dark .bkp-bar .bkp-rb.flat { background: transparent; }
   .bkp-overlay.dark .bkp-bar .bkp-rb.power-on { background: var(--mc); color: #fff; }

@@ -15,7 +15,7 @@ import { livePosition, travelTimes } from "./travel.js";
 import { overlayCss, renderOverlay } from "./views.js";
 import "./editor.js";
 
-const VERSION = "0.3.6";
+const VERSION = "0.3.8";
 const CARD = "bereichskarte-plus";
 const EDITOR = `${CARD}-editor`;
 const POWER_TO_WATT = { mW: 0.001, W: 1, kW: 1000, MW: 1e6 };
@@ -357,6 +357,10 @@ function defineCard(Base) {
         cfg,
         target: typeof target === "number" ? target : undefined,
         power: isNumeric(pst) ? formatState(this.hass, pst) : undefined,
+        average:
+          this._avg?.id === cfg.power_entity && this._avg.value !== undefined
+            ? formatWatt(this.hass, this._avg.value)
+            : undefined,
       };
     }
 
@@ -367,13 +371,101 @@ function defineCard(Base) {
       if (cl.st.state !== "off") {
         if (features & 128) this.hass.callService("climate", "turn_off", {}, target);
         else this.hass.callService("climate", "set_hvac_mode", { hvac_mode: "off" }, target);
-      } else if (features & 256) {
-        this.hass.callService("climate", "turn_on", {}, target);
       } else {
-        const mode = (cl.st.attributes.hvac_modes || []).find((m) => m !== "off");
+        // Immer gezielt in einen Modus einschalten: Klimageräte mögen es
+        // nicht, wenn nach dem Start gleich wieder umgeschaltet wird.
+        const mode = this._onMode(cl);
         if (mode) this.hass.callService("climate", "set_hvac_mode", { hvac_mode: mode }, target);
+        else if (features & 256) this.hass.callService("climate", "turn_on", {}, target);
       }
       this._bump();
+    }
+
+    // Modus, mit dem der Ein-Knopf startet: eingestellt, sonst der zuletzt
+    // genutzte, sonst Heizen, sonst der erste.
+    _onMode(cl) {
+      const modes = (cl.st.attributes.hvac_modes || []).filter((m) => m !== "off");
+      if (modes.includes(cl.cfg.on_mode)) return cl.cfg.on_mode;
+      let last;
+      try {
+        last = localStorage.getItem(`bkp-last-mode-${cl.cfg.entity}`);
+      } catch (err) {
+        // egal
+      }
+      if (modes.includes(last)) return last;
+      return modes.includes("heat") ? "heat" : modes[0];
+    }
+
+    _rememberMode() {
+      const cl = this._climate();
+      const mode = cl?.st.state;
+      if (!mode || ["off", "unavailable", "unknown"].includes(mode)) return;
+      if (mode === this._lastMode) return;
+      this._lastMode = mode;
+      try {
+        localStorage.setItem(`bkp-last-mode-${cl.cfg.entity}`, mode);
+      } catch (err) {
+        // egal
+      }
+    }
+
+    _toggleModeMenu() {
+      this._modeMenu = !this._modeMenu;
+      this.requestUpdate();
+      this._bump();
+    }
+
+    _setMode(mode) {
+      const cl = this._climate();
+      this._modeMenu = false;
+      if (mode !== cl.st.state) {
+        this.hass.callService(
+          "climate",
+          "set_hvac_mode",
+          { hvac_mode: mode },
+          { entity_id: cl.cfg.entity }
+        );
+      }
+      this.requestUpdate();
+      this._bump();
+    }
+
+    // Mittlere Leistung der letzten 60 Minuten, nach Zeit gewichtet.
+    async _loadAverage() {
+      const id = this._climateCfg()?.power_entity;
+      if (!id) return;
+      this._avgAt = Date.now();
+      const end = new Date();
+      const start = new Date(end.getTime() - 3600000);
+      try {
+        const res = await this.hass.callWS({
+          type: "history/history_during_period",
+          start_time: start.toISOString(),
+          end_time: end.toISOString(),
+          entity_ids: [id],
+          minimal_response: true,
+          no_attributes: true,
+          significant_changes_only: false,
+        });
+        const factor =
+          POWER_TO_WATT[this.hass.states[id]?.attributes.unit_of_measurement] ?? 1;
+        const rows = res[id] || [];
+        let sum = 0;
+        let time = 0;
+        rows.forEach((row, i) => {
+          const from = Math.max((row.lu ?? row.lc ?? 0) * 1000, start.getTime());
+          const next = rows[i + 1];
+          const to = next ? (next.lu ?? next.lc) * 1000 : end.getTime();
+          const value = Number(row.s);
+          if (Number.isNaN(value) || row.s === "" || to <= from) return;
+          sum += value * factor * (to - from);
+          time += to - from;
+        });
+        this._avg = { id, value: time ? sum / time : undefined };
+      } catch (err) {
+        this._avg = { id, value: undefined };
+      }
+      this.requestUpdate();
     }
 
     _climateStep(direction) {
@@ -400,23 +492,6 @@ function defineCard(Base) {
           { entity_id: cl.cfg.entity }
         );
       }, 700);
-      this._bump();
-    }
-
-    _climateCycle(modes) {
-      const cl = this._climate();
-      if (!modes.length) return;
-      const current = cl.st.state;
-      const next =
-        current === "off"
-          ? modes[0]
-          : modes[(modes.indexOf(current) + 1) % modes.length];
-      this.hass.callService(
-        "climate",
-        "set_hvac_mode",
-        { hvac_mode: next },
-        { entity_id: cl.cfg.entity }
-      );
       this._bump();
     }
 
@@ -480,6 +555,7 @@ function defineCard(Base) {
     _setView(view) {
       this._view = view;
       this._dragPos = null;
+      this._modeMenu = false;
       clearInterval(this._histTimer);
       if (view === "climate" && this._climateCfg()?.show_history) {
         this._history = null;
@@ -577,6 +653,13 @@ function defineCard(Base) {
         return;
       }
       this._renderIcons();
+      this._rememberMode();
+      if (
+        this._climateCfg()?.power_entity &&
+        Date.now() - (this._avgAt || 0) > 60000
+      ) {
+        this._loadAverage();
+      }
       this._watchCover();
       this._renderOverlay();
       if (this._view === "shutter" && !this._raf && this._cover()?.moving) {

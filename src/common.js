@@ -117,9 +117,11 @@ function median(values) {
     : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-export function powerEntityIds(hass, areaId, item) {
+// Sensoren eines Werts: alle passenden im Bereich, ohne die abgewählten,
+// plus die aus anderen Bereichen dazugenommenen.
+export function itemEntityIds(hass, areaId, item, deviceClass) {
   const exclude = new Set(item.exclude || []);
-  const ids = areaEntityIds(hass, areaId, "power").filter(
+  const ids = areaEntityIds(hass, areaId, deviceClass).filter(
     (id) => !exclude.has(id)
   );
   for (const id of item.include || []) {
@@ -127,6 +129,15 @@ export function powerEntityIds(hass, areaId, item) {
   }
   return ids;
 }
+
+export function powerEntityIds(hass, areaId, item) {
+  return itemEntityIds(hass, areaId, item, "power");
+}
+
+// Hat der Nutzer an der Auswahl gedreht, zählt sie mehr als die
+// Bereichseinstellung von Home Assistant.
+export const hasSelection = (item) =>
+  Boolean(item.exclude?.length || item.include?.length);
 
 export function powerSum(hass, ids) {
   let sum = 0;
@@ -176,15 +187,16 @@ export function computeItem(hass, area, item) {
     };
   }
 
-  // Temperatur oder Luftfeuchte: gewählter Sensor, dann Bereichseinstellung,
-  // zuletzt der Median aller passenden Sensoren im Bereich.
-  const chosen = item.entity || area[`${kind}_entity_id`];
+  // Temperatur oder Luftfeuchte: fester Sensor, sonst Bereichseinstellung
+  // (solange die Auswahl unverändert ist), sonst der Median der Auswahl.
+  const chosen =
+    item.entity || (!hasSelection(item) && area[`${kind}_entity_id`]);
   if (chosen) {
     return { text: tight(formatState(hass, hass.states[chosen])), icon };
   }
   const values = [];
   let unit;
-  for (const id of areaEntityIds(hass, area.area_id, KINDS[kind].deviceClass)) {
+  for (const id of itemEntityIds(hass, area.area_id, item, KINDS[kind].deviceClass)) {
     const stateObj = hass.states[id];
     if (!isNumeric(stateObj)) continue;
     const u = stateObj.attributes.unit_of_measurement;

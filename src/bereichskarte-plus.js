@@ -15,7 +15,7 @@ import { livePosition, travelTimes } from "./travel.js";
 import { overlayCss, renderOverlay } from "./views.js";
 import "./editor.js";
 
-const VERSION = "0.3.8";
+const VERSION = "0.3.9";
 const CARD = "bereichskarte-plus";
 const EDITOR = `${CARD}-editor`;
 const POWER_TO_WATT = { mW: 0.001, W: 1, kW: 1000, MW: 1e6 };
@@ -358,7 +358,10 @@ function defineCard(Base) {
         target: typeof target === "number" ? target : undefined,
         power: isNumeric(pst) ? formatState(this.hass, pst) : undefined,
         average:
-          this._avg?.id === cfg.power_entity && this._avg.value !== undefined
+          cfg.power_entity &&
+          this._avg &&
+          this._avg.id === cfg.power_entity &&
+          typeof this._avg.value === "number"
             ? formatWatt(this.hass, this._avg.value)
             : undefined,
       };
